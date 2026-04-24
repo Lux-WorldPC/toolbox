@@ -1,0 +1,19 @@
+{
+  "name": "@lwpc/secret-proxy",
+  "version": "1.0.0",
+  "description": "Backend for @lwpc/toolbox — Secure Message, Domain Checkup, What's My IP, Email Header Analyzer. Zero NPM dependency.",
+  "license": "MIT",
+  "main": "server.js",
+  "scripts": {
+    "start": "node --env-file=.env server.js"
+  },
+  "engines": {
+    "node": ">=20.6"
+  },
+  "dependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Lux-WorldPC/toolbox.git"
+  },
+  "homepage": "https://github.com/Lux-WorldPC/toolbox#readme"
+}

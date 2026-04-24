@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Live demo](https://img.shields.io/badge/live_demo-lwpc.lu%2Ftoolbox-3d5394)](https://lwpc.lu/lb/toolbox/)
-[![Tools](https://img.shields.io/badge/tools-6%2F6_frontends_published-brightgreen)](#available-tools)
+[![Tools](https://img.shields.io/badge/tools-6%2F6_frontends_+_backend_published-brightgreen)](#available-tools)
 
 Open-source IT utilities from [lwpc.lu](https://lwpc.lu).
 
@@ -20,16 +20,17 @@ Published under the MIT License so anyone can audit, reuse, adapt, or self-host.
 | Tool | Frontend | Backend | Live demo |
 |---|---|---|---|
 | Password Generator (Classic + Passphrase) | ✅ | n/a (100% local) | [/toolbox/password/](https://lwpc.lu/lb/toolbox/password/) |
-| Secure Message (E2E encrypted, self-destructing) | ✅ | ⏳ planned | [/toolbox/secret/](https://lwpc.lu/lb/toolbox/secret/) |
-| Domain Checkup (SPF/DKIM/DMARC/DNSSEC/TLS…) | ✅ | ⏳ planned | [/toolbox/domain/](https://lwpc.lu/lb/toolbox/domain/) |
-| What's My IP (v4/v6, rDNS, ASN, country) | ✅ | ⏳ planned | [/toolbox/myip/](https://lwpc.lu/lb/toolbox/myip/) |
-| Email Header Analyzer (spoofing + BEC detection) | ✅ | ⏳ planned | [/toolbox/email-headers/](https://lwpc.lu/lb/toolbox/email-headers/) |
+| Secure Message (E2E encrypted, self-destructing) | ✅ | ✅ | [/toolbox/secret/](https://lwpc.lu/lb/toolbox/secret/) |
+| Domain Checkup (SPF/DKIM/DMARC/DNSSEC/TLS…) | ✅ | ✅ | [/toolbox/domain/](https://lwpc.lu/lb/toolbox/domain/) |
+| What's My IP (v4/v6, rDNS, ASN, country) | ✅ | ✅ | [/toolbox/myip/](https://lwpc.lu/lb/toolbox/myip/) |
+| Email Header Analyzer (spoofing + BEC detection) | ✅ | ✅ (optional) | [/toolbox/email-headers/](https://lwpc.lu/lb/toolbox/email-headers/) |
 | QR Code Generator (CLI, Python) | ✅ | n/a | — |
 
-All 6 **frontends** are now published. Tools that need a backend expose their
-endpoint contract under `backend/` (published after internal review). The
-frontends work today against the live demo endpoints at `lwpc.lu` or against
-your own backend via `window.LWPC_API_BASE`.
+All **6 frontends + the backend** are now published. The backend lives in
+[backend/secret-proxy/](backend/secret-proxy/) — zero NPM dependency, pure
+Node.js stdlib, single file (~1500 lines). Frontends call `/api/...` on the
+same origin by default; point them at a different host via
+`window.LWPC_API_BASE` (see below).
 
 ## Layout
 
@@ -41,10 +42,24 @@ frontend/              Client-side tools (HTML + JS + CSS, no build step)
   domain/                Domain Checkup
   myip/                  What's My IP
   email-headers/         Email Header Analyzer (spoofing + BEC)
-backend/               Server-side components (published after review)
+backend/
+  secret-proxy/          Node.js server — 4 endpoints, zero NPM dependency
 tools/                 Standalone utilities
   qr/                    Python QR code generator (CLI)
 ```
+
+## Run the backend
+
+```bash
+cd backend/secret-proxy
+cp .env.example .env
+# Edit .env — at minimum set TURNSTILE_SECRET
+npm start
+# listens on 127.0.0.1:3100 by default
+```
+
+See [backend/secret-proxy/README.md](backend/secret-proxy/README.md) for the
+full endpoint contract and configuration.
 
 ## Run locally
 
