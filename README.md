@@ -1,5 +1,9 @@
 # toolbox
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Live demo](https://img.shields.io/badge/live_demo-lwpc.lu%2Ftoolbox-3d5394)](https://lwpc.lu/lb/toolbox/)
+[![Tools](https://img.shields.io/badge/tools-2%2F6_published-brightgreen)](#available-tools)
+
 Open-source IT utilities from [lwpc.lu](https://lwpc.lu).
 
 This repository contains the source code of the utilities available at
@@ -8,6 +12,8 @@ unless otherwise specified. No data leaves the browser for tools marked
 **100% local**.
 
 Published under the MIT License so anyone can audit, reuse, adapt, or self-host.
+
+**▶ [Try the live demo on lwpc.lu/toolbox/](https://lwpc.lu/lb/toolbox/)**
 
 ## Available tools
 
