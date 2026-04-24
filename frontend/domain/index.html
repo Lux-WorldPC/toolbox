@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Domain Checkup — @lwpc/toolbox</title>
+<meta name="description" content="Free DNS, email security and TLS audit for any domain — SPF, DKIM, DMARC, DNSSEC, MTA-STS, BIMI, autodiscover, autoconfig.">
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="../shared.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>Domain Checkup</h1>
+  <p>Free DNS, email security and TLS audit for any domain. <a href="https://github.com/Lux-WorldPC/toolbox">Source on GitHub</a></p>
+</header>
+
+<main class="domain-container">
+
+  <div class="domain-input-wrap">
+    <input type="text" id="domain-input" class="domain-input" placeholder="example.com" autocomplete="off" autofocus>
+    <button class="btn btn-primary domain-btn" id="domain-analyze">Analyze</button>
+  </div>
+  <div class="domain-quota-msg" id="domain-quota-msg"
+       data-lbl-limited="Quota limit reached — try again in {min} min"
+       data-lbl-unit="analyses"
+       data-lbl-remaining="remaining"
+       data-lbl-blocked="blocked"></div>
+
+  <div id="domain-results" class="domain-results-hidden">
+
+    <section class="domain-section" id="section-website">
+      <h2 class="domain-section-title">Website Hosting</h2>
+      <div class="domain-grid" id="website-grid">
+        <div class="domain-card" id="card-dns">
+          <h3>DNS / Network</h3>
+          <div class="domain-card-body" id="dns-body"><div class="domain-skeleton"></div></div>
+        </div>
+        <div class="domain-card" id="card-whois">
+          <h3>WHOIS / RDAP</h3>
+          <div class="domain-card-body" id="whois-body"><div class="domain-skeleton"></div></div>
+        </div>
+        <div class="domain-card" id="card-ssl">
+          <h3>SSL Certificate</h3>
+          <div class="domain-card-body" id="ssl-body"><div class="domain-skeleton"></div></div>
+        </div>
+        <div class="domain-card" id="card-cms">
+          <h3>Platform / CMS</h3>
+          <div class="domain-card-body" id="cms-body"><div class="domain-skeleton"></div></div>
+        </div>
+        <div class="domain-card domain-card-wide" id="card-dnssec">
+          <h3>DNS Security</h3>
+          <div class="domain-card-body" id="dnssec-body"><div class="domain-skeleton"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="domain-section" id="section-mail">
+      <h2 class="domain-section-title">Mail Intelligence</h2>
+      <div id="mail-body"><div class="domain-skeleton"></div></div>
+    </section>
+
+    <section class="domain-section" id="section-security">
+      <h2 class="domain-section-title">Email Security</h2>
+      <div class="domain-grid" id="security-grid">
+        <div class="domain-card domain-card-wide" id="card-spf">
+          <h3>SPF</h3>
+          <div class="domain-card-body" id="spf-body"><div class="domain-skeleton"></div></div>
+        </div>
+        <div class="domain-card" id="card-dmarc">
+          <h3>DMARC</h3>
+          <div class="domain-card-body" id="dmarc-body"><div class="domain-skeleton"></div></div>
+        </div>
+        <div class="domain-card" id="card-dkim">
+          <h3>DKIM</h3>
+          <div class="domain-card-body" id="dkim-body"><div class="domain-skeleton"></div></div>
+        </div>
+        <div class="domain-card" id="card-bimi">
+          <h3>BIMI</h3>
+          <div class="domain-card-body" id="bimi-body"><div class="domain-skeleton"></div></div>
+        </div>
+        <div class="domain-card" id="card-mtasts">
+          <h3>MTA-STS</h3>
+          <div class="domain-card-body" id="mtasts-body"><div class="domain-skeleton"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="domain-section" id="section-clientconfig">
+      <h2 class="domain-section-title">Email Client Config</h2>
+      <div class="domain-grid" id="clientconfig-grid">
+        <div class="domain-card" id="card-autodiscover">
+          <h3>Autodiscover (Exchange / M365)</h3>
+          <div class="domain-card-body" id="autodiscover-body"><div class="domain-skeleton"></div></div>
+        </div>
+        <div class="domain-card" id="card-autoconfig">
+          <h3>Autoconfig (Thunderbird)</h3>
+          <div class="domain-card-body" id="autoconfig-body"><div class="domain-skeleton"></div></div>
+        </div>
+        <div class="domain-card" id="card-srv">
+          <h3>SRV records</h3>
+          <div class="domain-card-body" id="srv-body"><div class="domain-skeleton"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <p class="domain-credits">
+      Data from <a href="https://developers.cloudflare.com/1.1.1.1/encryption/dns-over-https/" target="_blank" rel="noopener">Cloudflare DNS</a>
+      &amp; <a href="https://stat.ripe.net/" target="_blank" rel="noopener">RIPE Stat</a>
+    </p>
+
+  </div>
+</main>
+
+<footer>
+  Part of <a href="https://github.com/Lux-WorldPC/toolbox">@lwpc/toolbox</a> — MIT licensed. Backend: see <code>backend/secret-proxy/</code> in the repo.
+</footer>
+
+<script src="domain-tools.js" defer></script>
+</body>
+</html>

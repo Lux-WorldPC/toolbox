@@ -1,0 +1,116 @@
+/* Shared primitives for all @lwpc/toolbox frontend demos.
+   Dark theme, system fonts — self-contained, no external asset. */
+
+:root {
+  --bg:        #080c12;
+  --bg-2:      #0d1520;
+  --bg-3:      #1a2436;
+  --text:      #e8ecf2;
+  --text-2:    #b0bcd0;
+  --text-3:    #7a8a9c;
+  --blue:      #3d5394;
+  --blue-hi:   #5a75c0;
+  --yellow:    #f1cb25;
+  --ok:        #4ade80;
+  --warn:      #f59e0b;
+  --err:       #ef4444;
+  --border:    #1e2a42;
+  --radius:    6px;
+  --mono:      ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  --sans:      system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  margin: 0;
+  padding: 2rem 1rem;
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+header {
+  max-width: 720px;
+  margin: 0 auto 1.5rem;
+  text-align: center;
+}
+header h1 { margin: 0 0 0.25rem; font-size: 1.75rem; color: var(--text); }
+header p  { margin: 0; color: var(--text-3); font-size: 0.9rem; }
+header a  { color: var(--blue-hi); text-decoration: none; }
+header a:hover { text-decoration: underline; }
+
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1.2rem;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  font: inherit;
+  cursor: pointer;
+  transition: background .15s, transform .1s;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn-primary {
+  background: var(--blue);
+  color: #fff;
+  border-color: var(--blue);
+}
+.btn-primary:hover { background: var(--blue-hi); }
+.btn-secondary {
+  background: transparent;
+  color: var(--text-2);
+  border-color: var(--border);
+}
+.btn-secondary:hover {
+  background: var(--bg-3);
+  color: var(--text);
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* Form inputs */
+input[type="text"], input[type="email"], input[type="password"],
+textarea, select {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  padding: 0.6rem 0.75rem;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--blue-hi);
+}
+label { display: block; color: var(--text-2); font-size: 0.9rem; margin-bottom: 0.35rem; }
+
+footer {
+  max-width: 720px;
+  margin: 2rem auto 0;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-3);
+}
+footer a { color: var(--blue-hi); text-decoration: none; }
+footer a:hover { text-decoration: underline; }
+
+@media (max-width: 480px) {
+  body { padding: 1rem 0.5rem; }
+  .container { padding: 1rem; }
+}

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>What's My IP — @lwpc/toolbox</title>
+<meta name="description" content="Your public IP address (IPv4 + IPv6), reverse DNS, ISP, ASN, country. Lightweight open-source tool.">
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="../shared.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>What's My IP</h1>
+  <p>Your public IP (IPv4 + IPv6), ISP, ASN, country. <a href="https://github.com/Lux-WorldPC/toolbox">Source on GitHub</a></p>
+</header>
+
+<main class="domain-container">
+
+  <div class="domain-quota-msg" id="myip-quota-msg"
+       data-lbl-limited="Quota limit reached — try again in {min} min"
+       data-lbl-unit="analyses"
+       data-lbl-remaining="remaining"
+       data-lbl-blocked="blocked"></div>
+
+  <div class="domain-grid" id="myip-results">
+    <div class="domain-card" style="grid-column: 1 / -1;">
+      <h3>IP Address (IPv4 + IPv6)</h3>
+      <div class="domain-card-body" id="myip-ip"><div class="domain-skeleton"></div></div>
+    </div>
+    <div class="domain-card">
+      <h3>Reverse DNS</h3>
+      <div class="domain-card-body" id="myip-rdns"><div class="domain-skeleton"></div></div>
+    </div>
+    <div class="domain-card">
+      <h3>Network Owner</h3>
+      <div class="domain-card-body" id="myip-org"><div class="domain-skeleton"></div></div>
+    </div>
+    <div class="domain-card">
+      <h3>ASN / CIDR</h3>
+      <div class="domain-card-body" id="myip-asn"><div class="domain-skeleton"></div></div>
+    </div>
+    <div class="domain-card">
+      <h3>Country</h3>
+      <div class="domain-card-body" id="myip-country"><div class="domain-skeleton"></div></div>
+    </div>
+  </div>
+
+  <div class="form-submit-row" style="margin-top:1rem;">
+    <button class="btn btn-secondary" id="myip-refresh">↻ Refresh</button>
+  </div>
+
+  <p class="domain-credits">
+    IP detection by <a href="https://developers.cloudflare.com/1.1.1.1/" target="_blank" rel="noopener">Cloudflare</a>
+    &amp; <a href="https://www.ipify.org/" target="_blank" rel="noopener">ipify</a>
+    &nbsp;&middot;&nbsp; Network data from <a href="https://stat.ripe.net/" target="_blank" rel="noopener">RIPE Stat</a>
+  </p>
+
+</main>
+
+<footer>
+  Part of <a href="https://github.com/Lux-WorldPC/toolbox">@lwpc/toolbox</a> — MIT licensed
+</footer>
+
+<script src="myip.js" defer></script>
+</body>
+</html>

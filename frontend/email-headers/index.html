@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Email Header Analyzer — @lwpc/toolbox</title>
+<meta name="description" content="Analyse a suspicious email — spoofing detection and compromised mailbox (BEC) detection. All local in your browser.">
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="../shared.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>Email Header Analyzer</h1>
+  <p>Analyse a suspicious email — spoofing + compromised mailbox (BEC) detection. <a href="https://github.com/Lux-WorldPC/toolbox">Source on GitHub</a></p>
+</header>
+
+<main class="domain-container">
+
+  <div class="domain-quota-msg" id="eml-quota-msg"
+       data-lbl-limited="Quota limit reached — try again in {min} min"
+       data-lbl-unit="analyses"
+       data-lbl-remaining="remaining"
+       data-lbl-blocked="blocked"></div>
+
+  <div class="eml-input-section" id="eml-input-section">
+    <label class="eml-label" for="eml-raw">Paste email headers, full .eml content, or drop a .eml file</label>
+    <textarea class="eml-textarea" id="eml-raw" rows="10" placeholder="Received: from mail.example.com ...&#10;Authentication-Results: ...&#10;From: sender@example.com&#10;To: recipient@example.com&#10;Subject: ...&#10;&#10;Or drag &amp; drop a .eml file here"></textarea>
+    <div class="form-submit-row" style="margin-top:0.75rem;">
+      <button class="btn btn-primary" id="eml-analyze">Analyze →</button>
+      <label class="btn btn-secondary" for="eml-file" style="cursor:pointer;">Upload .eml</label>
+      <input type="file" id="eml-file" accept=".eml,.txt" style="display:none">
+      <button class="btn btn-secondary" id="eml-clear" style="display:none">Clear</button>
+    </div>
+  </div>
+
+  <div id="eml-results" style="display:none">
+
+    <div class="form-submit-row" id="eml-actions" style="display:none;">
+      <button class="btn btn-primary" id="eml-send-report">Receive report by email →</button>
+    </div>
+    <div id="eml-report-email-wrap" style="display:none; margin-bottom:1rem;">
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+        <input type="email" id="eml-report-email" class="domain-input" style="flex:1; min-width:200px;"
+               placeholder="you@example.com" autocomplete="email">
+        <button class="btn btn-primary" id="eml-report-confirm">→</button>
+      </div>
+      <div id="eml-report-status" style="margin-top:0.4rem; font-size:0.78rem;"></div>
+    </div>
+
+    <div class="eml-critical" id="eml-critical" style="display:none"
+         data-lbl-takeover="MAILBOX TAKEOVER SUSPECTED — DO NOT CLICK ANY LINK"
+         data-lbl-spoof="EMAIL SPOOFING DETECTED"
+         data-lbl-indicators="indicators detected"
+         data-lbl-suspicious="SUSPICIOUS LINKS"></div>
+
+    <section class="domain-section" id="eml-summary-section">
+      <h2 class="domain-section-title">Summary</h2>
+      <div class="domain-card">
+        <div class="domain-card-body" id="eml-summary"></div>
+      </div>
+    </section>
+
+    <section class="domain-section" id="eml-auth-section">
+      <h2 class="domain-section-title">Authentication</h2>
+      <div class="domain-grid" id="eml-auth-grid">
+        <div class="domain-card">
+          <h3>SPF</h3>
+          <div class="domain-card-body" id="eml-spf"></div>
+        </div>
+        <div class="domain-card">
+          <h3>DKIM</h3>
+          <div class="domain-card-body" id="eml-dkim"></div>
+        </div>
+        <div class="domain-card">
+          <h3>DMARC</h3>
+          <div class="domain-card-body" id="eml-dmarc"></div>
+        </div>
+        <div class="domain-card">
+          <h3>Spam Score</h3>
+          <div class="domain-card-body" id="eml-spam"></div>
+        </div>
+        <div class="domain-card domain-card-wide" id="card-ms-antispam">
+          <h3>Microsoft Antispam</h3>
+          <div class="domain-card-body" id="eml-ms-antispam"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="domain-section" id="eml-route-section">
+      <h2 class="domain-section-title">
+        Route (Received Headers)<span id="eml-total-delay" class="eml-total-delay"></span>
+      </h2>
+      <div id="eml-timeline"></div>
+      <div id="eml-route"></div>
+    </section>
+
+    <section class="domain-section" id="eml-attach-section" style="display:none">
+      <h2 class="domain-section-title">Attachments</h2>
+      <div id="eml-attachments"></div>
+    </section>
+
+    <section class="domain-section" id="eml-alerts-section" style="display:none">
+      <h2 class="domain-section-title">Alerts</h2>
+      <div id="eml-alerts"></div>
+    </section>
+
+    <details class="eml-raw-details">
+      <summary>Raw headers</summary>
+      <pre class="eml-raw-pre" id="eml-raw-display"></pre>
+    </details>
+
+  </div>
+</main>
+
+<footer>
+  Part of <a href="https://github.com/Lux-WorldPC/toolbox">@lwpc/toolbox</a> — MIT licensed. Backend (<code>/api/email-report</code>) optional, used only when receiving the report by email.
+</footer>
+
+<script src="email-headers.js" defer></script>
+</body>
+</html>
