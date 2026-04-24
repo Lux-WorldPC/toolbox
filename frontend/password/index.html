@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Password Generator — lwpc.lu/toolbox</title>
+<meta name="description" content="Open-source client-side password &amp; passphrase generator. 100% local — nothing leaves your browser.">
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>Password Generator</h1>
+  <p>100% local — runs entirely in your browser. <a href="https://github.com/Lux-WorldPC/toolbox">Source on GitHub</a></p>
+</header>
+
+<main class="pwgen-container" data-site-lang="en">
+
+  <div class="pwgen-tabs" role="tablist">
+    <button class="pwgen-tab active" role="tab" id="tab-generate" aria-selected="true" aria-controls="panel-generate" data-tab="generate">Generate</button>
+    <button class="pwgen-tab" role="tab" id="tab-test" aria-selected="false" aria-controls="panel-test" tabindex="-1" data-tab="test">Test</button>
+  </div>
+
+  <!-- ── Generate panel ──────────────────────────────────────────────── -->
+  <div class="pwgen-panel pwgen-panel-generate active" id="panel-generate" role="tabpanel" aria-labelledby="tab-generate" data-panel="generate">
+
+    <div class="pwgen-mode-switch">
+      <button class="pwgen-mode-btn active" data-mode="classic">Classic</button>
+      <button class="pwgen-mode-btn" data-mode="passphrase">Passphrase</button>
+    </div>
+
+    <div class="pwgen-output">
+      <div class="pwgen-display" id="pwgen-display" aria-live="polite" aria-label="Generated password"></div>
+      <div class="pwgen-actions">
+        <button class="btn btn-primary pwgen-btn" id="pwgen-copy" data-copied="Copied!">Copy</button>
+        <button class="btn btn-secondary pwgen-btn" id="pwgen-regenerate">Regenerate</button>
+        <button class="btn btn-secondary pwgen-btn pwgen-share-btn" id="pwgen-share" style="display:none">Share</button>
+      </div>
+    </div>
+
+    <div class="pwgen-strength">
+      <div class="pwgen-strength-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+        <div class="pwgen-strength-fill" id="pwgen-strength-fill"></div>
+      </div>
+      <div class="pwgen-strength-details" id="pwgen-strength-details"></div>
+    </div>
+
+    <!-- Classic mode controls -->
+    <div class="pwgen-controls pwgen-classic active" data-controls="classic">
+      <div class="pwgen-slider-group">
+        <label class="pwgen-label" for="pwgen-length">Length: <span id="pwgen-length-val">20</span></label>
+        <input type="range" id="pwgen-length" class="pwgen-slider" min="8" max="128" value="20">
+      </div>
+      <div class="pwgen-toggles">
+        <label class="pwgen-toggle"><input type="checkbox" id="pwgen-upper" checked><span class="pwgen-toggle-label">A-Z</span></label>
+        <label class="pwgen-toggle"><input type="checkbox" id="pwgen-lower" checked><span class="pwgen-toggle-label">a-z</span></label>
+        <label class="pwgen-toggle"><input type="checkbox" id="pwgen-digits" checked><span class="pwgen-toggle-label">0-9</span></label>
+        <label class="pwgen-toggle"><input type="checkbox" id="pwgen-symbols" checked><span class="pwgen-toggle-label">!@#$%</span></label>
+        <label class="pwgen-toggle"><input type="checkbox" id="pwgen-exclude-ambiguous"><span class="pwgen-toggle-label">Exclude ambiguous (0/O, 1/l/I)</span></label>
+      </div>
+    </div>
+
+    <!-- Passphrase mode controls -->
+    <div class="pwgen-controls pwgen-passphrase" data-controls="passphrase">
+      <div class="pwgen-slider-group">
+        <label class="pwgen-label" for="pwgen-words">Words: <span id="pwgen-words-val">4</span></label>
+        <input type="range" id="pwgen-words" class="pwgen-slider" min="3" max="10" value="4">
+      </div>
+      <div class="pwgen-pp-options">
+        <div class="pwgen-select-group">
+          <label class="pwgen-label" for="pwgen-separator">Separator</label>
+          <select id="pwgen-separator" class="pwgen-select">
+            <option value="-">Dash (-)</option>
+            <option value=".">Dot (.)</option>
+            <option value="_">Underscore (_)</option>
+            <option value=" ">Space</option>
+            <option value="">None</option>
+          </select>
+        </div>
+        <div class="pwgen-select-group">
+          <label class="pwgen-label" for="pwgen-lang">Language</label>
+          <select id="pwgen-lang" class="pwgen-select">
+            <option value="all">All (mixed)</option>
+            <option value="en" selected>English</option>
+            <option value="fr">Français</option>
+            <option value="de">Deutsch</option>
+            <option value="lb">Lëtzebuergesch</option>
+          </select>
+        </div>
+        <div class="pwgen-toggles">
+          <label class="pwgen-toggle"><input type="checkbox" id="pwgen-capitalize"><span class="pwgen-toggle-label">Capitalize first letter</span></label>
+          <label class="pwgen-toggle"><input type="checkbox" id="pwgen-add-digit"><span class="pwgen-toggle-label">Append digit</span></label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Test panel ──────────────────────────────────────────────────── -->
+  <div class="pwgen-panel pwgen-panel-test" id="panel-test" role="tabpanel" aria-labelledby="tab-test" data-panel="test" hidden>
+    <div class="pwgen-test-input-wrap">
+      <input type="password" id="pwgen-test-input" autocomplete="new-password" autocapitalize="off" spellcheck="false" placeholder="Type a password to test its strength">
+      <button class="pwgen-eye" id="pwgen-eye" aria-label="Show/hide password"><span class="pwgen-eye-icon">👁</span></button>
+    </div>
+    <div class="pwgen-strength">
+      <div class="pwgen-strength-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+        <div class="pwgen-strength-fill" id="pwgen-strength-fill-test"></div>
+      </div>
+      <div class="pwgen-strength-details" id="pwgen-strength-details-test"></div>
+    </div>
+    <div class="pwgen-test-advice" id="pwgen-test-advice"></div>
+    <div class="pwgen-local-notice">
+      <strong>100% local.</strong> What you type here never leaves your browser. No network requests, no telemetry, no storage.
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  Part of <a href="https://github.com/Lux-WorldPC/toolbox">@lwpc/toolbox</a> — MIT licensed
+</footer>
+
+<script src="common-passwords.js"></script>
+<script src="wordlist-en.js"></script>
+<script src="wordlist-fr.js"></script>
+<script src="wordlist-de.js"></script>
+<script src="wordlist-lb.js"></script>
+<script src="password-generator.js"></script>
+
+</body>
+</html>

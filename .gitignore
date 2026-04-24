@@ -1,0 +1,47 @@
+# ── Secrets ────────────────────────────────────────────────────────────────
+# Any .env file is blocked by default. Only .env.example / .env.default allowed.
+.env
+.env.*
+!.env.example
+!.env.default
+
+# ── Runtime / logs ─────────────────────────────────────────────────────────
+*.log
+logs/
+data/
+*.pid
+*.sock
+
+# ── Dependencies ───────────────────────────────────────────────────────────
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# ── Builds ─────────────────────────────────────────────────────────────────
+dist/
+build/
+out/
+*.min.js.map
+
+# ── Test samples (real data never committed) ───────────────────────────────
+samples/*.eml
+samples/*.pdf
+samples/*.png
+samples/*.jpg
+!samples/*.example
+
+# ── Generated artifacts ────────────────────────────────────────────────────
+*.pptx
+*.tmp
+
+# ── OS / editors ───────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
