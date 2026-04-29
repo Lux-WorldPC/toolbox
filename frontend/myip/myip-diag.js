@@ -428,7 +428,14 @@
       } else if (natType === 'symmetric') {
         state = 'cgnat';
         reason = lbl('lblSymmetric', 'Symmetric NAT — public IP varies between STUN servers (CGNAT pool).');
-      } else if (dbip && (dbip.linkType === 'cellular' || dbip.usageType === 'cellular')) {
+      } else if (dbip && (
+            dbip.linkType === 'cellular' ||
+            dbip.linkType === 'wireless' ||
+            dbip.usageType === 'cellular'
+          )) {
+        /* DB-IP utilise tantôt 'cellular' tantôt 'wireless' pour la 4G/5G
+           selon les régions/opérateurs. Les deux valeurs signalent du
+           mobile, qui est CGNATé chez quasi tous les opérateurs mondiaux. */
         state = 'cgnat';
         reason = lbl('lblCellular', 'Cellular network detected — mobile data is almost always CGNATed.');
       } else if (dbip && dbip.isProxy && dbip.proxyType === 'tor') {
