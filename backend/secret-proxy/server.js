@@ -1215,33 +1215,6 @@ function reverseDns(ip) {
   });
 }
 
-/* DB-IP enrichi (clé privée optionnelle, fallback silencieux si absent).
-   Cache mémoire : 1h par IP, économise le quota DB-IP (10k/jour Starter). */
-var DBIP_API_KEY = process.env.DBIP_API_KEY || '';
-var dbipCache = Object.create(null);
-var DBIP_CACHE_TTL_MS = 60 * 60 * 1000;
-
-async function fetchDbipServer(ip) {
-  if (!DBIP_API_KEY || !ip) return null;
-  var cached = dbipCache[ip];
-  var now = Date.now();
-  if (cached && (now - cached.ts) < DBIP_CACHE_TTL_MS) return cached.data;
-  if (Object.keys(dbipCache).length > 5000) {
-    for (var k in dbipCache) {
-      if ((now - dbipCache[k].ts) >= DBIP_CACHE_TTL_MS) delete dbipCache[k];
-    }
-  }
-  try {
-    var resp = await httpsGet('https://api.db-ip.com/v2/' + encodeURIComponent(DBIP_API_KEY) + '/' + encodeURIComponent(ip));
-    var d = JSON.parse(resp.body);
-    if (d && !d.error) {
-      dbipCache[ip] = { ts: now, data: d };
-      return d;
-    }
-  } catch (e) { /* DB-IP indisponible — fallback silencieux */ }
-  return null;
-}
-
 async function handleMyIp(req, res) {
   /* L'IP peut être passée en paramètre ?ip=X (le JS client la récupère via Cloudflare trace,
      car HAProxy voit l'IP NATée interne, pas la vraie IP publique du visiteur).
@@ -1249,73 +1222,50 @@ async function handleMyIp(req, res) {
   var url = new URL(req.url, 'http://localhost');
   var ip = url.searchParams.get('ip') || getClientIp(req);
 
-  /* RIPE + DB-IP en parallèle — gain de latence vs séquentiel. */
-  var rdnsPromise = reverseDns(ip);
-  var ripePromise = (async function () {
-    var ripeData = { org: '', netname: '', prefix: '', asn: null, country: '' };
-    try {
-      var netResult = await httpsGet('https://stat.ripe.net/data/network-info/data.json?resource=' + encodeURIComponent(ip));
-      var whoisResult = await httpsGet('https://stat.ripe.net/data/whois/data.json?resource=' + encodeURIComponent(ip));
-      var netD = JSON.parse(netResult.body);
-      var whoisD = JSON.parse(whoisResult.body);
-      ripeData.prefix = (netD.data && netD.data.prefix) || '';
-      var asns = (netD.data && netD.data.asns) || [];
-      if (asns.length) ripeData.asn = asns[0];
-      if (whoisD.data && whoisD.data.records) {
-        for (var r = 0; r < whoisD.data.records.length; r++) {
-          for (var f = 0; f < whoisD.data.records[r].length; f++) {
-            var field = whoisD.data.records[r][f];
-            var k = field.key, v = field.value;
-            if (k === 'netname' && !ripeData.netname) ripeData.netname = v;
-            if ((k === 'org-name' || k === 'OrgName' || k === 'organization') && !ripeData.org) ripeData.org = v;
-            if ((k === 'country' || k === 'Country') && !ripeData.country) ripeData.country = v;
-            if (k === 'descr' && !ripeData.org) ripeData.org = v;
-          }
+  /* Reverse DNS */
+  var rdns = await reverseDns(ip);
+
+  /* RIPE Stat — même logique que handleIpInfo mais sans vérification isValidPublicIP
+     (l'IP du client est toujours publique via HAProxy) */
+  var ripeData = { org: '', netname: '', prefix: '', asn: null, country: '' };
+  try {
+    var netResult = await httpsGet('https://stat.ripe.net/data/network-info/data.json?resource=' + encodeURIComponent(ip));
+    var whoisResult = await httpsGet('https://stat.ripe.net/data/whois/data.json?resource=' + encodeURIComponent(ip));
+    var netD = JSON.parse(netResult.body);
+    var whoisD = JSON.parse(whoisResult.body);
+
+    ripeData.prefix = (netD.data && netD.data.prefix) || '';
+    var asns = (netD.data && netD.data.asns) || [];
+    if (asns.length) ripeData.asn = asns[0];
+
+    if (whoisD.data && whoisD.data.records) {
+      for (var r = 0; r < whoisD.data.records.length; r++) {
+        for (var f = 0; f < whoisD.data.records[r].length; f++) {
+          var field = whoisD.data.records[r][f];
+          var k = field.key, v = field.value;
+          if (k === 'netname' && !ripeData.netname) ripeData.netname = v;
+          if ((k === 'org-name' || k === 'OrgName' || k === 'organization') && !ripeData.org) ripeData.org = v;
+          if ((k === 'country' || k === 'Country') && !ripeData.country) ripeData.country = v;
+          if (k === 'descr' && !ripeData.org) ripeData.org = v;
         }
       }
-    } catch (e) { /* RIPE indisponible — on retourne quand même l'IP */ }
-    return ripeData;
-  })();
-  var dbipPromise = fetchDbipServer(ip);
-
-  var results = await Promise.all([rdnsPromise, ripePromise, dbipPromise]);
-  var rdns = results[0];
-  var ripeData = results[1];
-  var dbip = results[2];
+    }
+  } catch (e) { /* RIPE indisponible — on retourne quand même l'IP */ }
 
   /* Décoder les entités HTML que RIPE peut retourner (ex: "P&amp;T" → "P&T").
      Sans ça, esc() côté JS double-encode → affiche "P&amp;T" à l'écran. */
   function decodeEntities(s) { return s ? s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>') : s; }
 
-  var payload = {
+  return jsonResponse(res, 200, {
     ip: ip,
     reverse: rdns,
-    org: decodeEntities(ripeData.org) || (dbip && (dbip.organization || dbip.isp)) || '',
+    org: decodeEntities(ripeData.org),
     netname: decodeEntities(ripeData.netname),
     prefix: ripeData.prefix,
-    asn: ripeData.asn || (dbip && dbip.asNumber) || null,
-    country: ripeData.country ? ripeData.country.toUpperCase() : (dbip && dbip.countryCode ? dbip.countryCode.toUpperCase() : ''),
+    asn: ripeData.asn,
+    country: ripeData.country ? ripeData.country.toUpperCase() : '',
     whitelisted: WHITELIST_IPS.indexOf(ip) !== -1
-  };
-  if (dbip) {
-    payload.dbip = {
-      linkType: dbip.linkType || null,
-      usageType: dbip.usageType || null,
-      isProxy: !!dbip.isProxy,
-      proxyType: dbip.proxyType || null,
-      isAnycast: !!dbip.isAnycast,
-      isCrawler: !!dbip.isCrawler,
-      threatLevel: dbip.threatLevel || null,
-      threatDetails: Array.isArray(dbip.threatDetails) ? dbip.threatDetails : [],
-      city: dbip.city || null,
-      stateProv: dbip.stateProv || null,
-      latitude: dbip.latitude || null,
-      longitude: dbip.longitude || null,
-      asName: dbip.asName || null,
-      isp: dbip.isp || null
-    };
-  }
-  return jsonResponse(res, 200, payload);
+  });
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1475,20 +1425,6 @@ const server = http.createServer(async function (req, res) {
       console.error('[domain-tools] Erreur autoconfig:', e);
       jsonResponse(res, 500, { error: 'Internal error' });
     }
-
-  /* ── What's My IP — diagnostic ping (RTT measurement, added 2026-04-29).
-        Light endpoint for client-side RTT probes (5 fetches, median).
-        Must come before /api/myip (catch-all) since '/api/myip/ping'.startsWith('/api/myip'). */
-  } else if (req.method === 'GET' && req.url === '/api/myip/ping') {
-    if (isRateLimited(clientIp, 600)) {
-      return jsonResponse(res, 429, { error: 'Too many requests.' });
-    }
-    res.writeHead(200, {
-      'Content-Type': 'text/plain',
-      'Cache-Control': 'no-store',
-      'Content-Length': '2'
-    });
-    res.end('ok');
 
   /* ── What's My IP ── */
   } else if (req.method === 'GET' && req.url.startsWith('/api/myip')) {
