@@ -5,10 +5,12 @@
  * Activé après que myip.js a affiché les 5 cards de base et émis l'event
  * 'lwpc-myip-ready' sur document. Lance en parallèle :
  *
- *   1. WebRTC/STUN (probe Cloudflare + Google) — ICE candidates host + srflx
- *      → détecte 100.64.0.0/10 (CGNAT confirmé RFC 6598), symmetric NAT
- *        (port srflx variable entre 2 STUN servers = CGNAT very probable),
- *        IP locale (ou *.local si mDNS Chrome).
+ *   1. WebRTC/STUN — UNE seule RTCPeerConnection avec 2 STUN servers
+ *      (Cloudflare + Google) dans iceServers. Test RFC 5780 du NAT mapping
+ *      behavior : srflx candidates identiques pour tous les STUN = cone NAT,
+ *      divergentes = symmetric NAT (CGNAT very likely).
+ *      Détecte aussi 100.64.0.0/10 (CGNAT confirmé RFC 6598), IP locale
+ *      ou *.local si mDNS Chrome.
  *   2. IPv6 reachability — utilise simplement le résultat Cloudflare trace
  *      capturé par myip.js (event detail.ipv6) : si présent, IPv6 OK.
  *   3. Connection quality — 5 fetches /api/myip/ping (médiane RTT),
@@ -81,48 +83,68 @@
     return false;
   }
 
-  /* ── 1. STUN probe (WebRTC) ─────────────────────────────────
-     Récupère les ICE candidates émises pour un STUN donné.
-     Renvoie { host: [...], srflx: [...], stun: url, error: string|null }.
-     Timeout 4s — STUN est ~ 50-200ms en pratique mais on laisse de la marge. */
-  function stunProbe(stunUrl) {
+  /* ── 1. STUN probe (WebRTC) — UNE SEULE RTCPeerConnection avec les
+        N serveurs STUN dans iceServers. ICE va alors interroger chaque
+        STUN avec le MÊME socket UDP local et émettre une srflx candidate
+        par STUN — c'est le vrai test RFC 5780 du NAT mapping behavior :
+
+          - mêmes (ip, port) srflx pour tous les STUN  → endpoint-independent
+            (full-cone, address/port-restricted) = ✅ pas de CGNAT côté NAT
+          - port (ou IP) srflx différent selon le STUN → endpoint-dependent
+            (symmetric NAT) = 🔴 CGNAT très probable
+
+        ⚠ Faire 2 PeerConnection séparées (une par STUN) ne marche PAS :
+        chaque PC ouvre son propre socket UDP éphémère → ports différents
+        même en cone NAT (faux positif). Il faut UNE PC, plusieurs STUN.
+
+        Renvoie { host: [...], srflx: [...by stun], error: string|null }
+        avec srflx = [{ stun, address, port, raddr, rport }, ...]. */
+  function stunProbe(stunUrls) {
     return new Promise(function (resolve) {
       if (typeof RTCPeerConnection === 'undefined') {
-        resolve({ host: [], srflx: [], stun: stunUrl, error: 'no-webrtc' });
+        resolve({ host: [], srflx: [], error: 'no-webrtc' });
         return;
       }
       var pc, done = false, host = [], srflx = [];
       function finish(err) {
         if (done) return; done = true;
         try { pc && pc.close(); } catch (e) {}
-        resolve({ host: host, srflx: srflx, stun: stunUrl, error: err || null });
+        resolve({ host: host, srflx: srflx, error: err || null });
       }
       try {
-        pc = new RTCPeerConnection({ iceServers: [{ urls: stunUrl }] });
+        pc = new RTCPeerConnection({
+          iceServers: stunUrls.map(function (u) { return { urls: u }; }),
+          iceCandidatePoolSize: 0
+        });
       } catch (e) { finish('rtc-init-failed'); return; }
       pc.createDataChannel('lwpc-probe');
       pc.onicecandidate = function (e) {
         if (!e.candidate) { finish(null); return; } /* end-of-candidates */
         var c = e.candidate;
-        /* Parser le candidate string pour extraire type, ip, port :
-           "candidate:842163049 1 udp 1677729535 1.2.3.4 54321 typ srflx raddr 0.0.0.0 rport 0 ..."
-           On préfère c.address/c.port quand dispos (Chrome récent). */
+        var raw = c.candidate || '';
         var addr = c.address || null, port = c.port || null, type = null;
-        var m = c.candidate.match(/typ\s+(\S+)/);
+        var raddr = c.relatedAddress || null, rport = c.relatedPort || null;
+        var m = raw.match(/typ\s+(\S+)/);
         if (m) type = m[1];
-        if (!addr) { var ma = c.candidate.match(/typ\s+\S+\s+raddr|^candidate:\S+\s+\d+\s+\S+\s+\d+\s+(\S+)\s+(\d+)/); if (ma && ma[1]) { addr = ma[1]; port = parseInt(ma[2], 10); } }
         if (!addr) {
-          /* Fallback parser large */
-          var parts = c.candidate.split(/\s+/);
+          var parts = raw.split(/\s+/);
           if (parts.length >= 6) { addr = parts[4]; port = parseInt(parts[5], 10); }
+        }
+        if (!raddr) {
+          var rm = raw.match(/raddr\s+(\S+)\s+rport\s+(\d+)/);
+          if (rm) { raddr = rm[1]; rport = parseInt(rm[2], 10); }
         }
         if (!type || !addr) return;
         if (type === 'host') host.push({ address: addr, port: port });
-        else if (type === 'srflx') srflx.push({ address: addr, port: port });
+        else if (type === 'srflx') srflx.push({
+          address: addr, port: port, raddr: raddr, rport: rport, raw: raw
+        });
       };
       pc.createOffer().then(function (o) { return pc.setLocalDescription(o); })
         .catch(function () { finish('offer-failed'); });
-      setTimeout(function () { finish('timeout'); }, 4000);
+      /* Timeout généreux : ICE peut tarder à émettre tous les candidates
+         srflx (un par STUN), surtout si l'un des STUN est lent. */
+      setTimeout(function () { finish('timeout'); }, 5000);
     });
   }
 
@@ -191,7 +213,7 @@
     setCard('myip-local', html);
   }
 
-  function renderNat(natType, srflxByStun) {
+  function renderNat(natType) {
     var color = '#8b949e', label = natType || 'unknown';
     if (natType === 'symmetric') {
       color = '#e74c3c';
@@ -209,26 +231,27 @@
     setCard('myip-nat', html);
   }
 
-  function renderStun(observations) {
-    /* observations = [{ stun, srflx: [{address, port}], host: [...], error }] */
-    if (!observations.length) {
+  function renderStun(srflxList, stunUrls) {
+    /* srflxList = [{ address, port, raddr, rport, raw }, ...] — collectées
+       sur une seule PeerConnection avec N STUN servers. ICE émet généralement
+       une srflx candidate par STUN (sauf si dédoublonnage par le navigateur).
+       L'ordre n'est pas garanti — on liste juste les couples observés. */
+    if (!srflxList || !srflxList.length) {
       return setCard('myip-stun', '<span style="color:var(--text-3)">' +
-        esc(lbl('lblNoWebrtc', 'WebRTC unavailable')) + '</span>');
+        esc(lbl('lblNoWebrtc', 'WebRTC unavailable / no srflx')) + '</span>');
     }
+    /* Dédup (ip, port) : si tous identiques → 1 ligne, sinon plusieurs */
+    var uniq = {}, ordered = [];
+    srflxList.forEach(function (s) {
+      var k = s.address + ':' + s.port;
+      if (!uniq[k]) { uniq[k] = true; ordered.push(s); }
+    });
+    var stunsLabel = (stunUrls || []).map(function (u) { return u.replace(/^stun:/, ''); }).join(' + ');
     var html = '<div style="display:grid;grid-template-columns:1fr;gap:0.4rem;font-family:var(--mono);font-size:0.85rem;">';
-    observations.forEach(function (o) {
-      var labelStun = o.stun.replace(/^stun:/, '');
-      if (o.error) {
-        html += '<div><span style="color:var(--text-3)">' + esc(labelStun) + ':</span> ' +
-          '<span class="domain-error">' + esc(o.error) + '</span></div>';
-      } else if (!o.srflx.length) {
-        html += '<div><span style="color:var(--text-3)">' + esc(labelStun) + ':</span> ' +
-          '<span style="color:var(--text-3)">(no srflx)</span></div>';
-      } else {
-        var s = o.srflx[0];
-        html += '<div><span style="color:var(--text-3)">' + esc(labelStun) + ':</span> ' +
-          esc(s.address) + ':' + esc(s.port) + '</div>';
-      }
+    html += '<div style="color:var(--text-3);font-size:0.75rem;">via ' + esc(stunsLabel) + '</div>';
+    ordered.forEach(function (s, i) {
+      var line = esc(s.address) + ':' + esc(s.port);
+      html += '<div>#' + (i + 1) + ' &nbsp; ' + line + '</div>';
     });
     html += '</div>';
     setCard('myip-stun', html);
@@ -287,53 +310,49 @@
     /* Render IPv6 immédiatement (basé sur les données déjà collectées) */
     renderIpv6(hasIpv6, d.ipv6, false /* isCgnatV4 — déterminé après STUN */);
 
-    /* RTT + HTTP + TLS — en parallèle des STUN probes */
+    /* RTT + HTTP + TLS — en parallèle de la STUN probe */
     var rttPromise = measureRtt().then(function (c) { renderConn(c); return c; });
 
-    /* STUN probes — Cloudflare puis Google (pas en parallèle pour rester
-       gentil avec les serveurs publics et permettre la comparaison de ports). */
+    /* STUN probe — UNE seule RTCPeerConnection avec 2 STUN servers dans
+       iceServers (cf. commentaire stunProbe). C'est le vrai test RFC 5780. */
     var stunUrls = ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'];
-    var probesPromise = stunProbe(stunUrls[0]).then(function (a) {
-      return stunProbe(stunUrls[1]).then(function (b) { return [a, b]; });
-    });
+    var probePromise = stunProbe(stunUrls);
 
-    Promise.all([probesPromise, rttPromise]).then(function (results) {
-      var probes = results[0];
+    Promise.all([probePromise, rttPromise]).then(function (results) {
+      var probe = results[0];
 
-      /* Fusion des host candidates (dédup par address) */
-      var hostMap = {};
-      probes.forEach(function (p) {
-        (p.host || []).forEach(function (h) { hostMap[h.address] = h; });
-      });
-      var hostCands = Object.keys(hostMap).map(function (k) { return hostMap[k]; });
-      renderLocal(hostCands);
+      /* Host candidates — affichage Local Network */
+      renderLocal(probe.host || []);
 
-      /* Render STUN observations */
-      renderStun(probes);
+      /* Détection CGNAT 100.64/10 sur host candidates ET srflx */
+      var hasCgnatHost = (probe.host || []).some(function (c) { return isCgnat(c.address); });
+      var hasCgnatSrflx = (probe.srflx || []).some(function (c) { return isCgnat(c.address); });
 
-      /* Détection CGNAT 100.64/10 dans host candidates */
-      var hasCgnatHost = hostCands.some(function (c) { return isCgnat(c.address); });
+      /* Affichage STUN — on liste les srflx par "STUN n°i" puisqu'on ne sait
+         plus de quel STUN vient chaque candidate (single PC, ICE multiplexe).
+         C'est OK : ce qui compte est qu'on en voit ≥ 1, et qu'ils soient
+         tous identiques (cone) ou divergents (symmetric). */
+      renderStun(probe.srflx || [], stunUrls);
 
-      /* Comparaison srflx ports inter-STUN → symmetric NAT */
-      var srflx0 = (probes[0].srflx && probes[0].srflx[0]) || null;
-      var srflx1 = (probes[1].srflx && probes[1].srflx[0]) || null;
+      /* Analyse symmetric vs cone : on dédoublonne les paires (ip, port)
+         des srflx — si une seule paire unique → endpoint-independent (cone),
+         si plusieurs paires distinctes → endpoint-dependent (symmetric). */
       var natType = 'unknown';
-      if (probes.every(function (p) { return p.error === 'no-webrtc'; })) natType = 'no-webrtc';
-      else if (srflx0 && srflx1) {
-        if (srflx0.address !== srflx1.address || Math.abs(srflx0.port - srflx1.port) > 1) {
-          natType = 'symmetric';
-        } else {
-          natType = 'cone';
-        }
-      } else if (!srflx0 && !srflx1) {
-        natType = 'unknown';
+      if (probe.error === 'no-webrtc') natType = 'no-webrtc';
+      else if (!probe.srflx || !probe.srflx.length) natType = 'unknown';
+      else {
+        var pairs = {};
+        probe.srflx.forEach(function (s) { pairs[s.address + ':' + s.port] = true; });
+        var unique = Object.keys(pairs).length;
+        if (unique === 1) natType = 'cone';
+        else natType = 'symmetric';
       }
-      renderNat(natType, [srflx0, srflx1]);
+      renderNat(natType);
 
       /* Mise à jour IPv6 reachability avec contexte CGNAT */
-      var srflxIp = (srflx0 && srflx0.address) || (srflx1 && srflx1.address) || ipv4;
+      var srflxIp = (probe.srflx && probe.srflx[0] && probe.srflx[0].address) || ipv4;
       var srflxIsCgnat = isCgnat(srflxIp);
-      if (hasIpv6 && (hasCgnatHost || srflxIsCgnat || natType === 'symmetric')) {
+      if (hasIpv6 && (hasCgnatHost || hasCgnatSrflx || natType === 'symmetric')) {
         renderIpv6(true, d.ipv6, true);
       }
 
@@ -343,7 +362,7 @@
       if (natType === 'no-webrtc') {
         state = 'unknown';
         reason = vlbl('lblUnknownSub', '');
-      } else if (hasCgnatHost || srflxIsCgnat) {
+      } else if (hasCgnatHost || hasCgnatSrflx) {
         state = 'cgnat';
         reason = lbl('lblCgnatConfirmed', 'IP detected in 100.64.0.0/10 (RFC 6598).');
       } else if (natType === 'symmetric') {
