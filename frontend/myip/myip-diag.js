@@ -7,10 +7,9 @@
  *
  *   1. WebRTC/STUN — UNE seule RTCPeerConnection avec 2 STUN servers
  *      (Cloudflare + Google) dans iceServers. Test RFC 5780 du NAT mapping
- *      behavior : srflx candidates identiques pour tous les STUN = cone NAT,
- *      divergentes = symmetric NAT (CGNAT very likely).
- *      Détecte aussi 100.64.0.0/10 (CGNAT confirmé RFC 6598), IP locale
- *      ou *.local si mDNS Chrome.
+ *      behavior, mais avec regroupement par raddr (interface locale source)
+ *      pour ne pas confondre multi-homing (Wi-Fi + Ethernet, VPN, Docker)
+ *      avec symmetric NAT.
  *   2. IPv6 reachability — utilise simplement le résultat Cloudflare trace
  *      capturé par myip.js (event detail.ipv6) : si présent, IPv6 OK.
  *   3. Connection quality — 5 fetches /api/myip/ping (médiane RTT),
@@ -232,26 +231,23 @@
   }
 
   function renderStun(srflxList, stunUrls) {
-    /* srflxList = [{ address, port, raddr, rport, raw }, ...] — collectées
-       sur une seule PeerConnection avec N STUN servers. ICE émet généralement
-       une srflx candidate par STUN (sauf si dédoublonnage par le navigateur).
-       L'ordre n'est pas garanti — on liste juste les couples observés. */
+    /* Affiche chaque srflx (ip publique:port) avec sa raddr (interface locale
+       source). Plusieurs interfaces (Wi-Fi + Ethernet, VPN, Docker) → autant
+       de srflx avec raddr différents. Comparer leur (ip, port) entre raddr
+       n'a pas de sens (sockets différents) — d'où le regroupement visible. */
     if (!srflxList || !srflxList.length) {
       return setCard('myip-stun', '<span style="color:var(--text-3)">' +
         esc(lbl('lblNoWebrtc', 'WebRTC unavailable / no srflx')) + '</span>');
     }
-    /* Dédup (ip, port) : si tous identiques → 1 ligne, sinon plusieurs */
-    var uniq = {}, ordered = [];
-    srflxList.forEach(function (s) {
-      var k = s.address + ':' + s.port;
-      if (!uniq[k]) { uniq[k] = true; ordered.push(s); }
-    });
     var stunsLabel = (stunUrls || []).map(function (u) { return u.replace(/^stun:/, ''); }).join(' + ');
     var html = '<div style="display:grid;grid-template-columns:1fr;gap:0.4rem;font-family:var(--mono);font-size:0.85rem;">';
     html += '<div style="color:var(--text-3);font-size:0.75rem;">via ' + esc(stunsLabel) + '</div>';
-    ordered.forEach(function (s, i) {
+    srflxList.forEach(function (s, i) {
       var line = esc(s.address) + ':' + esc(s.port);
-      html += '<div>#' + (i + 1) + ' &nbsp; ' + line + '</div>';
+      var note = s.raddr
+        ? ' <span style="color:var(--text-3);font-size:0.75rem;">(from ' + esc(s.raddr) + ')</span>'
+        : '';
+      html += '<div>#' + (i + 1) + ' &nbsp; ' + line + note + '</div>';
     });
     html += '</div>';
     setCard('myip-stun', html);
@@ -334,18 +330,41 @@
          tous identiques (cone) ou divergents (symmetric). */
       renderStun(probe.srflx || [], stunUrls);
 
-      /* Analyse symmetric vs cone : on dédoublonne les paires (ip, port)
-         des srflx — si une seule paire unique → endpoint-independent (cone),
-         si plusieurs paires distinctes → endpoint-dependent (symmetric). */
+      /* Analyse symmetric vs cone — IMPORTANT : il faut comparer SEULEMENT
+         des srflx qui sortent du MÊME chemin réseau (même raddr = même
+         interface locale + socket). Un client multi-homed (Wi-Fi + Ethernet,
+         VPN, Docker, adaptateurs virtuels) émet une host candidate par
+         interface → chaque interface ouvre son propre socket UDP éphémère
+         → ports srflx différents même en cone NAT, ce qui n'est PAS un
+         signal symmetric (juste du multi-homing).
+
+         On groupe donc les srflx par raddr et on cherche l'INCONSISTANCE
+         INTRA-RADDR : si deux srflx sortant de la même interface ont des
+         (ip, port) différents → symmetric NAT vraiment. Sinon → cone. */
       var natType = 'unknown';
       if (probe.error === 'no-webrtc') natType = 'no-webrtc';
       else if (!probe.srflx || !probe.srflx.length) natType = 'unknown';
       else {
-        var pairs = {};
-        probe.srflx.forEach(function (s) { pairs[s.address + ':' + s.port] = true; });
-        var unique = Object.keys(pairs).length;
-        if (unique === 1) natType = 'cone';
-        else natType = 'symmetric';
+        var byRaddr = {};
+        probe.srflx.forEach(function (s) {
+          var k = s.raddr || '_unknown';
+          if (!byRaddr[k]) byRaddr[k] = {};
+          byRaddr[k][s.address + ':' + s.port] = true;
+        });
+        var symmetricEvidence = false;
+        var coneEvidence = false;
+        Object.keys(byRaddr).forEach(function (raddr) {
+          var n = Object.keys(byRaddr[raddr]).length;
+          if (n > 1) symmetricEvidence = true;
+          else if (n === 1) coneEvidence = true;
+        });
+        /* Si on n'a aucune comparaison intra-raddr possible (1 seul srflx
+           par interface, ou aucun raddr fiable), on retient "cone" par
+           défaut — c'est le cas standard et l'absence de preuve d'inconsis-
+           tance ne justifie pas un verdict 🔴 alarmiste. */
+        if (symmetricEvidence) natType = 'symmetric';
+        else if (coneEvidence) natType = 'cone';
+        else natType = 'unknown';
       }
       renderNat(natType);
 
