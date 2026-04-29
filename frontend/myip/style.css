@@ -87,3 +87,77 @@
 }
 .domain-credits a { color: var(--blue-hi); text-decoration: none; }
 .domain-credits a:hover { text-decoration: underline; }
+
+/* ── Verdict card + diag section (added 2026-04-29) ─────── */
+
+.myip-verdict {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--text-3);
+  border-radius: var(--radius);
+  padding: 1rem 1.2rem;
+  margin-bottom: 1rem;
+  transition: border-color 0.2s, background 0.2s;
+}
+.myip-verdict[data-state="diagnosing"] { border-left-color: var(--text-3); }
+.myip-verdict[data-state="direct"]     { border-left-color: #27ae60; }
+.myip-verdict[data-state="uncertain"]  { border-left-color: #f1c40f; }
+.myip-verdict[data-state="cgnat"]      { border-left-color: #e74c3c; }
+.myip-verdict[data-state="unknown"]    { border-left-color: #8b949e; }
+
+.myip-verdict-icon { font-size: 2.2rem; line-height: 1; flex-shrink: 0; }
+.myip-verdict-body { flex: 1; min-width: 0; }
+.myip-verdict-title {
+  font-family: var(--mono);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.2rem;
+}
+.myip-verdict-sub { font-size: 0.82rem; color: var(--text-2); line-height: 1.4; }
+.myip-verdict-toggle {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.myip-verdict-toggle:hover {
+  background: var(--bg-3, var(--bg-2));
+  color: var(--text);
+}
+.myip-verdict-toggle-chevron { font-size: 0.7rem; }
+@media (max-width: 560px) {
+  .myip-verdict { flex-wrap: wrap; }
+  .myip-verdict-toggle { width: 100%; justify-content: center; }
+}
+
+.myip-details[hidden] { display: none; }
+
+.myip-diag-h2 {
+  font-family: var(--mono);
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0.5rem 0;
+}
+
+.myip-privacy {
+  margin-top: 1rem;
+  font-size: 0.82rem;
+  color: var(--text-3);
+}
+.myip-privacy summary { cursor: pointer; padding: 0.4rem 0; font-weight: 600; color: var(--text-2); }
+.myip-privacy p { margin: 0.6rem 0 0; line-height: 1.5; }

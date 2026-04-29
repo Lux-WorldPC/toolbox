@@ -51,9 +51,9 @@
 
   function setCard(id, html) { var el = document.getElementById(id); if (el) el.innerHTML = html; }
 
-  /* ── Quota — 10 / 30 min ─────────────────────────────────── */
+  /* ── Quota — 30 / 30 min (raised 2026-04-29: network diag adds /api/myip/ping) ── */
 
-  var QM = 10, QW = 30 * 60 * 1000, QK = 'myip_lookups';
+  var QM = 30, QW = 30 * 60 * 1000, QK = 'myip_lookups';
   function qGet() { try { var d = JSON.parse(sessionStorage.getItem(QK)); if (d && Array.isArray(d.ts)) return d; } catch (e) {} return { ts: [] }; }
   function qSave(d) { sessionStorage.setItem(QK, JSON.stringify(d)); }
   function qPurge() { var d = qGet(), n = Date.now(); d.ts = d.ts.filter(function (t) { return t > n - QW; }); qSave(d); return d; }
@@ -170,9 +170,18 @@
 
         /* Stocker les données pour le bouton "Envoyer au support" */
         lastIpData = d;
+
+        /* Notify myip-diag.js that base IP data is ready —
+           triggers WebRTC/STUN, IPv6 reachability, RTT, TLS, verdict scoring. */
+        try {
+          document.dispatchEvent(new CustomEvent('lwpc-myip-ready', { detail: d }));
+        } catch (e) { /* old browser — no advanced diag */ }
       })
       .catch(function () {
         setCard('myip-ip', '<span class="domain-error">Unable to detect IP</span>');
+        try {
+          document.dispatchEvent(new CustomEvent('lwpc-myip-failed'));
+        } catch (e) {}
       });
   }
 

@@ -1426,6 +1426,20 @@ const server = http.createServer(async function (req, res) {
       jsonResponse(res, 500, { error: 'Internal error' });
     }
 
+  /* ── What's My IP — diagnostic ping (RTT measurement, added 2026-04-29).
+        Light endpoint for client-side RTT probes (5 fetches, median).
+        Must come before /api/myip (catch-all) since '/api/myip/ping'.startsWith('/api/myip'). */
+  } else if (req.method === 'GET' && req.url === '/api/myip/ping') {
+    if (isRateLimited(clientIp, 600)) {
+      return jsonResponse(res, 429, { error: 'Too many requests.' });
+    }
+    res.writeHead(200, {
+      'Content-Type': 'text/plain',
+      'Cache-Control': 'no-store',
+      'Content-Length': '2'
+    });
+    res.end('ok');
+
   /* ── What's My IP ── */
   } else if (req.method === 'GET' && req.url.startsWith('/api/myip')) {
     if (isRateLimited(clientIp, 60)) {

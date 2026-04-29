@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>What's My IP — @lwpc/toolbox</title>
-<meta name="description" content="Your public IP address (IPv4 + IPv6), reverse DNS, ISP, ASN, country. Lightweight open-source tool.">
+<meta name="description" content="IT-grade network diagnostic: public IP (IPv4 + IPv6), CGNAT detection via WebRTC/STUN, NAT type, RTT, HTTP/TLS version. Lightweight open-source tool.">
 <meta name="robots" content="noindex">
 <link rel="stylesheet" href="../shared.css">
 <link rel="stylesheet" href="style.css">
@@ -13,39 +13,104 @@
 
 <header>
   <h1>What's My IP</h1>
-  <p>Your public IP (IPv4 + IPv6), ISP, ASN, country. <a href="https://github.com/Lux-WorldPC/toolbox">Source on GitHub</a></p>
+  <p>IT-grade network diagnostic: public IP, CGNAT detection, NAT type, IPv6 reachability. <a href="https://github.com/Lux-WorldPC/toolbox">Source on GitHub</a></p>
 </header>
 
 <main class="domain-container">
 
   <div class="domain-quota-msg" id="myip-quota-msg"
-       data-lbl-limited="Quota limit reached — try again in {min} min"
+       data-lbl-limited="Voluntarily limited to"
        data-lbl-unit="analyses"
        data-lbl-remaining="remaining"
-       data-lbl-blocked="blocked"></div>
+       data-lbl-blocked="Please try again later."></div>
 
-  <div class="domain-grid" id="myip-results">
-    <div class="domain-card" style="grid-column: 1 / -1;">
-      <h3>IP Address (IPv4 + IPv6)</h3>
-      <div class="domain-card-body" id="myip-ip"><div class="domain-skeleton"></div></div>
+  <!-- Verdict synthesis -->
+  <div class="myip-verdict" id="myip-verdict" data-state="diagnosing"
+       role="status" aria-live="polite" aria-atomic="true"
+       data-lbl-diagnosing="Running network diagnostic…"
+       data-lbl-direct-title="Direct public IP — reachable from the Internet"
+       data-lbl-direct-sub="Inbound VPN, port forwarding and self-hosted services are possible."
+       data-lbl-uncertain-title="Public IP but reachability uncertain"
+       data-lbl-uncertain-sub="Likely operator or router firewall. Test port forwarding to confirm."
+       data-lbl-cgnat-title="CGNAT detected — no inbound reachability"
+       data-lbl-cgnat-sub="Your IPv4 is shared with other ISP customers. A public-IP option is required to host services or open ports."
+       data-lbl-unknown-title="Diagnostic inconclusive"
+       data-lbl-unknown-sub="Cannot conclude from server side alone (WebRTC unavailable or blocked)."
+       data-lbl-toggle-show="Show technical details"
+       data-lbl-toggle-hide="Hide details">
+    <div class="myip-verdict-icon" aria-hidden="true">⏳</div>
+    <div class="myip-verdict-body">
+      <div class="myip-verdict-title">Running network diagnostic…</div>
+      <div class="myip-verdict-sub"></div>
     </div>
-    <div class="domain-card">
-      <h3>Reverse DNS</h3>
-      <div class="domain-card-body" id="myip-rdns"><div class="domain-skeleton"></div></div>
-    </div>
-    <div class="domain-card">
-      <h3>Network Owner</h3>
-      <div class="domain-card-body" id="myip-org"><div class="domain-skeleton"></div></div>
-    </div>
-    <div class="domain-card">
-      <h3>ASN / CIDR</h3>
-      <div class="domain-card-body" id="myip-asn"><div class="domain-skeleton"></div></div>
-    </div>
-    <div class="domain-card">
-      <h3>Country</h3>
-      <div class="domain-card-body" id="myip-country"><div class="domain-skeleton"></div></div>
-    </div>
+    <button class="myip-verdict-toggle" id="myip-verdict-toggle" type="button"
+            aria-expanded="true" aria-controls="myip-details">
+      <span>Hide details</span>
+      <span class="myip-verdict-toggle-chevron" aria-hidden="true">▾</span>
+    </button>
   </div>
+
+  <div class="myip-details" id="myip-details">
+
+    <div class="domain-grid" id="myip-results">
+      <div class="domain-card" style="grid-column: 1 / -1;">
+        <h3>IP Address (IPv4 + IPv6)</h3>
+        <div class="domain-card-body" id="myip-ip"><div class="domain-skeleton"></div></div>
+      </div>
+      <div class="domain-card">
+        <h3>Reverse DNS</h3>
+        <div class="domain-card-body" id="myip-rdns"><div class="domain-skeleton"></div></div>
+      </div>
+      <div class="domain-card">
+        <h3>Network Owner</h3>
+        <div class="domain-card-body" id="myip-org"><div class="domain-skeleton"></div></div>
+      </div>
+      <div class="domain-card">
+        <h3>ASN / CIDR</h3>
+        <div class="domain-card-body" id="myip-asn"><div class="domain-skeleton"></div></div>
+      </div>
+      <div class="domain-card">
+        <h3>Country</h3>
+        <div class="domain-card-body" id="myip-country"><div class="domain-skeleton"></div></div>
+      </div>
+    </div>
+
+    <h2 class="myip-diag-h2">Advanced network diagnostic</h2>
+    <div class="domain-grid" id="myip-diag-grid"
+         data-lbl-mdns="mDNS obfuscated"
+         data-lbl-no-webrtc="WebRTC unavailable"
+         data-lbl-symmetric="Symmetric NAT (CGNAT very likely)"
+         data-lbl-cone="Cone NAT (consistent mapping)"
+         data-lbl-open="Open / endpoint-independent"
+         data-lbl-cgnat-confirmed="IP detected in 100.64.0.0/10 (RFC 6598)."
+         data-lbl-ipv6-yes="Connected"
+         data-lbl-ipv6-no="IPv4-only (no IPv6 connectivity detected)"
+         data-lbl-ipv6-saves="Your IPv4 is CGNATed but IPv6 is reachable — your services stay exposed via IPv6."
+         data-lbl-rtt-unit="ms"
+         data-lbl-pending="Measuring…">
+      <div class="domain-card">
+        <h3>Local Network</h3>
+        <div class="domain-card-body" id="myip-local"><div class="domain-skeleton"></div></div>
+      </div>
+      <div class="domain-card">
+        <h3>NAT Type</h3>
+        <div class="domain-card-body" id="myip-nat"><div class="domain-skeleton"></div></div>
+      </div>
+      <div class="domain-card" style="grid-column: 1 / -1;">
+        <h3>STUN observation (as seen from Internet)</h3>
+        <div class="domain-card-body" id="myip-stun"><div class="domain-skeleton"></div></div>
+      </div>
+      <div class="domain-card">
+        <h3>IPv6 Reachability</h3>
+        <div class="domain-card-body" id="myip-ipv6"><div class="domain-skeleton"></div></div>
+      </div>
+      <div class="domain-card">
+        <h3>Connection Quality</h3>
+        <div class="domain-card-body" id="myip-conn"><div class="domain-skeleton"></div></div>
+      </div>
+    </div>
+
+  </div><!-- /myip-details -->
 
   <div class="form-submit-row" style="margin-top:1rem;">
     <button class="btn btn-secondary" id="myip-refresh">↻ Refresh</button>
@@ -55,7 +120,13 @@
     IP detection by <a href="https://developers.cloudflare.com/1.1.1.1/" target="_blank" rel="noopener">Cloudflare</a>
     &amp; <a href="https://www.ipify.org/" target="_blank" rel="noopener">ipify</a>
     &nbsp;&middot;&nbsp; Network data from <a href="https://stat.ripe.net/" target="_blank" rel="noopener">RIPE Stat</a>
+    &nbsp;&middot;&nbsp; STUN: <a href="https://developers.cloudflare.com/calls/turn/" target="_blank" rel="noopener">Cloudflare</a>, Google
   </p>
+
+  <details class="myip-privacy">
+    <summary>Privacy</summary>
+    <p>This tool stores no results. Displayed data (IP, ASN, country, STUN observations, RTT) are computed on the fly and stay in your browser. Requests to Cloudflare, ipify, RIPE Stat and public STUN servers are sent directly from your browser — your IP is therefore visible to them. No tracking cookies.</p>
+  </details>
 
 </main>
 
@@ -64,5 +135,6 @@
 </footer>
 
 <script src="myip.js" defer></script>
+<script src="myip-diag.js" defer></script>
 </body>
 </html>
